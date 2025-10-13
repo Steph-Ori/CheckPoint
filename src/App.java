@@ -6,7 +6,7 @@
  * ---------------------------------
  * This class is the main driver for CheckPoint App.
  * It will manage user inputs through the CLI
- * Has all CRUD operations here
+ * Has all CRUD operations here.
  */
 
 import java.nio.file.Path;

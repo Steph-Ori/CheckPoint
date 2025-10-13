@@ -6,7 +6,7 @@
  * ---------------------------------
  * The library (collection) of all games
  * Has crud here and the import of data from files
- * Holds the user interface
+ * Holds the user interface.
  */
 
 import java.io.BufferedReader;

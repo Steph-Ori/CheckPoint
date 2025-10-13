@@ -32,7 +32,7 @@ public class Game {
      * method: Game
      * parameters: id: int, name: String, platform: String, status: Status, priority: int, ownership: Ownership
      * return: none
-     * purpose: Builds game and makes sure all fields are setters
+     * purpose: Builds game and makes sure all fields are setters.
      */
 
     public Game(int id, String name, String platform, Status status, int priority, Ownership ownership) {
