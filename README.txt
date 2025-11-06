@@ -13,3 +13,16 @@ How to Run:
 3. Double-click CheckPoint.jar
    OR open Command Prompt here and type:
    java -jar CheckPoint.jar
+
+   --- UPDATED ---
+   ### 🧩 Connecting to the Database
+
+   1. When the program starts, click **“Connect DB…”**.
+   2. In the file chooser window, navigate to the project folder.
+   3. Select **checkpoint_SAMPLE.db** and click **Open**.
+   4. The program will automatically connect and display all 50+ sample records.
+   5. You can now test Add, Update, Delete, Import, and Report features.
+
+   If you wish to use a new database:
+   - Simply create a new `.db` file anywhere on your computer.
+   - The program will automatically generate the required `games` table.
