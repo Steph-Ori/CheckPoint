@@ -15,9 +15,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
-public class Library {
+public class Library_OLD {
     private final List<Game> games = new ArrayList<>();
+
+    private final DbLibrary library = new DbLibrary("G:/checkpoint.db");
+
 
     /**
      * method: listAll
@@ -29,6 +34,7 @@ public class Library {
     public List<Game> listAll() {
         return Collections.unmodifiableList(games);
     }
+
 
     /**
      * method: add
