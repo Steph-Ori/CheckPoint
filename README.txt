@@ -13,3 +13,20 @@ How to Run:
 3. Double-click CheckPoint.jar
    OR open Command Prompt here and type:
    java -jar CheckPoint.jar
+
+
+UPDATED FOR DATEBASE INTERGRATOION:
+
+---
+
+## 🚀 How to Run
+
+### Option 1: Run in IntelliJ / VS Code
+1. Open project folder in your IDE.
+2. Run `CheckPointSwing.java` as the main class.
+3. When prompted, **choose an SQLite file** or create a new one (e.g., `CheckPoint.db`).
+
+### Option 2: Run from Command Line
+```bash
+javac *.java
+java CheckPointSwing
