@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class LibraryImportTest {
+public class LibraryOLDImportTest {
 
     @TempDir Path temp;
 
@@ -20,7 +20,7 @@ public class LibraryImportTest {
                 "bad|line|oops"
         ));
 
-        Library library = new Library();
+        Library_OLD library = new Library_OLD();
         String message = library.importFromFile(data);
         // kept message wording loose to keep options open
         assertTrue(message.toLowerCase().contains("import"));
@@ -29,7 +29,7 @@ public class LibraryImportTest {
 
     @Test
     void importFromFile_missingFile_reportsNice() {
-        Library library = new Library();
+        Library_OLD library = new Library_OLD();
         Path missing = temp.resolve("nope.txt");
         String message = library.importFromFile(missing);
         assertTrue(message.toLowerCase().contains("file"), "expect a nice file-not-found message");
