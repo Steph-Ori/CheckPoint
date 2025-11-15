@@ -14,35 +14,46 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 
+/**
+ * Legacy in-memory library for the original CheckPoint phases.
+ *
+ * <p>This class keeps games in a simple {@link List} in memory and exposes
+ * basic operations such as list, add, remove, update, import, and reporting.
+ * It mirrors the behavior of {@link DbLibrary} closely enough so that the
+ * earlier JUnit tests still compile and run, even after the app moved to
+ * a database-backed implementation.</p>
+ *
+ * <p><b>Role in the overall system:</b> test-only, in-memory version of the
+ * game library. The main GUI and CLI use {@link DbLibrary} instead.</p>
+ */
 public class Library_OLD {
+
     private final List<Game> games = new ArrayList<>();
 
+    // Kept for historical reasons; not used by the in-memory methods.
     private final DbLibrary library = new DbLibrary("G:/checkpoint.db");
 
-
     /**
-     * method: listAll
-     * parameters: none
-     * return: List<Game>
-     * purpose: returns an unchangable view of all games in the library.
+     * Returns an unmodifiable view of all games currently loaded in memory.
+     *
+     * @return unmodifiable list of games
      */
-
     public List<Game> listAll() {
         return Collections.unmodifiableList(games);
     }
 
-
     /**
-     * method: add
-     * parameters: game: Game
-     * return: String
-     * purpose: adds a game if its id is unique (not repeated) and returns a status message.
+     * Adds a game if its id is unique and returns a status message.
+     *
+     * @param game game to add
+     * @return status message describing the result
      */
-
     public String add(Game game) {
         if (findById(game.getId()).isPresent()) {
             return "❌ A game with that id already exists";
@@ -52,12 +63,11 @@ public class Library_OLD {
     }
 
     /**
-     * method: remove
-     * parameters: id: int
-     * return: String
-     * purpose: removes a game by id and returns a status message.
+     * Removes a game by id and returns a status message.
+     *
+     * @param id id of the game to remove
+     * @return status message describing the result
      */
-
     public String remove(int id) {
         Optional<Game> hit = findById(id);
         if (hit.isEmpty()) return "No game record with id " + id + " to remove";
@@ -66,12 +76,13 @@ public class Library_OLD {
     }
 
     /**
-     * method: updateField
-     * parameters: id: int, field: String, newValue: String
-     * return: String
-     * purpose: Updates one field of a game by id and returns a status message.
+     * Updates one field of a game by id and returns a status message.
+     *
+     * @param id       id of the game to update
+     * @param field    field name to update (name, platform, status, priority, ownership)
+     * @param newValue new value for the given field
+     * @return status message describing the result
      */
-
     public String updateField(int id, String field, String newValue) {
         Optional<Game> hit = findById(id);
         if (hit.isEmpty()) return "⚠️ No game record with id " + id + " to update";
@@ -83,7 +94,9 @@ public class Library_OLD {
                 case "status" -> game.setStatus(Game.Status.valueOf(newValue.toUpperCase(Locale.ROOT)));
                 case "priority" -> game.setPriority(Integer.parseInt(newValue));
                 case "ownership" -> game.setOwnership(Game.Ownership.valueOf(newValue.toUpperCase(Locale.ROOT)));
-                default -> { return "❌ Unknown field: " + field; }
+                default -> {
+                    return "❌ Unknown field: " + field;
+                }
             }
         } catch (Exception exception) {
             return "❌ Wrong value for " + field + ": " + exception.getMessage();
@@ -92,12 +105,12 @@ public class Library_OLD {
     }
 
     /**
-     * method: importFromFile
-     * parameters: path: Path
-     * return: String
-     * purpose: loads games from a UTF-8 text file and returns a summary message.
+     * Loads games from a UTF-8 text file and returns a summary message.
+     * Existing games are left in place; imported games are appended.
+     *
+     * @param path path to the text file to import
+     * @return summary message with added/skipped counts
      */
-
     public String importFromFile(Path path) {
         if (path == null) return "❌ Path is needed.";
         if (!Files.exists(path)) return "❌ File not found: " + path;
@@ -110,7 +123,10 @@ public class Library_OLD {
                 if (line.trim().isEmpty() || line.trim().startsWith("#")) continue;
                 // Format: id|name|platform|status|priority|ownership
                 String[] parts = line.split("\\|");
-                if (parts.length != 6) { skipped++; continue; }
+                if (parts.length != 6) {
+                    skipped++;
+                    continue;
+                }
                 try {
                     Game g = new Game(
                             Integer.parseInt(parts[0].trim()),
@@ -120,7 +136,10 @@ public class Library_OLD {
                             Integer.parseInt(parts[4].trim()),
                             Game.Ownership.valueOf(parts[5].trim().toUpperCase(Locale.ROOT))
                     );
-                    if (findById(g.getId()).isPresent()) { skipped++; continue; }
+                    if (findById(g.getId()).isPresent()) {
+                        skipped++;
+                        continue;
+                    }
                     games.add(g);
                     added++;
                 } catch (Exception exception) {
@@ -135,23 +154,24 @@ public class Library_OLD {
     }
 
     /**
-     * method: findById
-     * parameters: id: int
-     * return: Optional<Game>
-     * purpose: looks up a game by id and returns it if found.
+     * Looks up a game by its id.
+     *
+     * @param id id to search for
+     * @return an {@code Optional} containing the game if found, or empty otherwise
      */
-
     public Optional<Game> findById(int id) {
         return games.stream().filter(g -> g.getId() == id).findFirst();
     }
 
     /**
-     * method: scoreFor
-     * parameters: game: Game
-     * return: int
-     * purpose: computes the backlog score for a single game.
+     * Computes a backlog score for a single game.
+     *
+     * <p>Status contributes a weight (UNPLAYED &gt; PLAYING &gt; BEATEN) and is
+     * combined with priority to give a simple "tackle this next" score.</p>
+     *
+     * @param game game to score
+     * @return numeric score where higher means more urgent
      */
-
     public int scoreFor(Game game) {
         int statusWeight = switch (game.getStatus()) {
             case UNPLAYED -> 3;
@@ -162,16 +182,15 @@ public class Library_OLD {
     }
 
     /**
-     * method: backlogReport
-     * parameters: topNumber: int
-     * return: String
-     * purpose: returns a text report with library stats and the top number priority games.
+     * Builds a text report with overall stats and the top Number games to tackle next.
+     *
+     * @param topNumber how many top-scoring games to include
+     * @return multi-line text report with backlog stats and top games
      */
-
     public String backlogReport(int topNumber) {
         if (games.isEmpty()) return "No games loaded yet.";
 
-         //Building and showing stats of game(s)
+        // Building and showing stats of game(s)
         long unplayed = games.stream().filter(g -> g.getStatus() == Game.Status.UNPLAYED).count();
         long playing = games.stream().filter(g -> g.getStatus() == Game.Status.PLAYING).count();
         long beaten = games.stream().filter(g -> g.getStatus() == Game.Status.BEATEN).count();

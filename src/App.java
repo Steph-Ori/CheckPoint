@@ -1,12 +1,11 @@
 /**
  * Stephanie Ortiz
  * CEN 3024 - Software Development 1
- * November 5th, 2025
+ * November 9th, 2025
  * CheckPointSwing.java
  * ---------------------------------
  * Everything that puts CheckPoint Together
  */
-
 
 
 import java.util.List;
@@ -15,28 +14,41 @@ import java.util.Scanner;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/**
+ * CheckPoint (Phase 4: Database) CLI.
+ *
+ * <p>This tiny driver lets a user point at an SQLite file and manage their game backlog
+ * with a simple menu: connect, list, add, remove, update, and a quick stats report.
+ * No hardcoded paths—the user picks the DB at runtime.</p>
+ *
+ * <p><b>Role in the overall system:</b> front CLI that delegates all data work to
+ * {@link DbLibrary}. This class does input/validation and prints results.</p>
+ *
+ * <p><b>Usage:</b></p>
+ * <pre>{@code
+ * // Run from the command line
+ * java App
+ * }</pre>
+ */
 public class App {
     private final Scanner in = new Scanner(System.in);
 
-    // NOTE: now we talk to the DB-backed library (not in-memory).
+    // NOTE: Now a DB-backed library (not in-memory).
     // It starts as null until the user supplies a database path.
     private DbLibrary library = null;
 
     /**
-     * method: main
-     * parameters: args: String[]
-     * return: void
-     * purpose: Entry point for CLI application.
+     * Entry point for the CLI application.
+     *
+     * @param args command-line arguments (unused)
      */
     public static void main(String[] args) {
         new App().run();
     }
 
     /**
-     * method: run
-     * parameters: none
-     * return: void
-     * purpose: Main loop with menu; never exits unless the user chooses to.
+     * Main loop with the menu. Stays running until the user chooses Exit.
+     * Simple and predictable on purpose.
      */
     public void run() {
         println("\n=== CHECKPOINT (Phase 4: Database) ===\n");
@@ -64,6 +76,9 @@ public class App {
         }
     }
 
+    /**
+     * Prints the main menu. Kept separate so it’s easy to tweak.
+     */
     private void showMenu() {
         println("""
                 ---------------------------
@@ -77,14 +92,12 @@ public class App {
                 ---------------------------""");
     }
 
-    // Menu Handlers
+    // === Menu Handlers ===
 
     /**
-     * method: handleConnect
-     * parameters: none
-     * return: void
-     * purpose: Ask the user for an SQLite file path and connect to it (no hardcoding).
-     *          If the file does not exist, DbLibrary will still create the table as needed.
+     * Ask the user for an SQLite file path and connect to it (no hardcoding).
+     * If the file doesn’t exist, {@link DbLibrary} will create the table as needed.
+     * Gives clear feedback if the folder path looks wrong.
      */
     private void handleConnect() {
         while (true) {
@@ -109,10 +122,7 @@ public class App {
     }
 
     /**
-     * method: handleDisplay
-     * parameters: none
-     * return: void
-     * purpose: Show all records from the database (or a friendly message if none).
+     * Show all records from the database (or a friendly message if there aren’t any).
      */
     private void handleDisplay() {
         if (!ensureConnected()) return;
@@ -126,10 +136,8 @@ public class App {
     }
 
     /**
-     * method: handleCreate
-     * parameters: none
-     * return: void
-     * purpose: Collect all fields, validate, add to the database, and then show the new list.
+     * Collect user input, validate, add a new record, then refresh the list.
+     * Keeps the flow tight so adding a game feels quick.
      */
     private void handleCreate() {
         if (!ensureConnected()) return;
@@ -152,10 +160,8 @@ public class App {
     }
 
     /**
-     * method: handleRemove
-     * parameters: none
-     * return: void
-     * purpose: Removes a record by id and then refreshes the display.
+     * Remove a record by id and then refresh the display.
+     * Quick way to clean up mistakes or finished items.
      */
     private void handleRemove() {
         if (!ensureConnected()) return;
@@ -165,10 +171,8 @@ public class App {
     }
 
     /**
-     * method: handleUpdate
-     * parameters: none
-     * return: void
-     * purpose: Lets the user update any single field safely.
+     * Let the user update a single field safely with validation.
+     * Keeps guardrails (known fields, enums, and range checks).
      */
     private void handleUpdate() {
         if (!ensureConnected()) return;
@@ -206,10 +210,8 @@ public class App {
     }
 
     /**
-     * method: handleCustomFeature
-     * parameters: none
-     * return: void
-     * purpose: Ask for Number and display the CheckPoint report calculated from DB information
+     * Ask for a number and print a small “Top Number” report from the DB.
+     * Great for a quick backlog snapshot.
      */
     private void handleCustomFeature() {
         if (!ensureConnected()) return;
@@ -217,13 +219,12 @@ public class App {
         println(library.backlogReport(topNumber));
     }
 
-    // Helpers
+    // == Helpers ==
 
     /**
-     * method: ensureConnected
-     * parameters: none
-     * return: boolean
-     * purpose: Guards all operations until a DB connection is chosen by the user.
+     * Guard: stop and remind the user to connect to a DB first.
+     *
+     * @return {@code true} if a DB is connected; {@code false} otherwise
      */
     private boolean ensureConnected() {
         if (library == null) {
@@ -234,10 +235,10 @@ public class App {
     }
 
     /**
-     * method: readNonEmpty
-     * parameters: String
-     * return: String
-     * purpose: Keep asking until a non-blank string is entered.
+     * Keep asking until the user enters a non-blank string.
+     *
+     * @param prompt what to print before reading
+     * @return trimmed, non-empty input
      */
     private String readNonEmpty(String prompt) {
         while (true) {
@@ -249,20 +250,22 @@ public class App {
     }
 
     /**
-     * method: readPositiveInt
-     * parameters: String
-     * return: int
-     * purpose: Read a positive integer with validation.
+     * Read a positive integer with simple validation.
+     *
+     * @param prompt what to print before reading
+     * @return integer &gt; 0
      */
     private int readPositiveInt(String prompt) {
         return readIntInRange(prompt, 1, Integer.MAX_VALUE);
     }
 
     /**
-     * method: readIntInRange
-     * parameters: String, min, max
-     * return: int
-     * purpose: Very extra numeric input in [min, max].
+     * Read an integer in the inclusive range {@code [min, max]}.
+     *
+     * @param prompt label shown to the user
+     * @param min    minimum allowed value
+     * @param max    maximum allowed value
+     * @return a validated integer inside the range
      */
     private int readIntInRange(String prompt, int min, int max) {
         while (true) {
@@ -283,10 +286,12 @@ public class App {
     }
 
     /**
-     * method: readIntInRangeOrCancelOnce
-     * parameters: enterIdToUpdate, min, max
-     * return: Integer (null if cancelled)
-     * purpose: Allows a single cancel in the update flow.
+     * Read an integer in range with a one-time escape hatch.
+     *
+     * @param enterIdToUpdate prompt to show (includes the hint to press {@code C} to cancel)
+     * @param min             minimum allowed value
+     * @param max             maximum allowed value
+     * @return the chosen integer, or {@code null} if the user typed {@code C}
      */
     private Integer readIntInRangeOrCancelOnce(String enterIdToUpdate, int min, int max) {
         while (true) {
@@ -307,10 +312,9 @@ public class App {
     }
 
     /**
-     * method: readUniqueIdForCreate
-     * parameters: none
-     * return: int
-     * purpose: Ensures the id is > 0 and not already in use in the current DB.
+     * Ensure the new id is unique (> 0 and not already in the DB).
+     *
+     * @return a valid id ready for insert
      */
     private int readUniqueIdForCreate() {
         while (true) {
@@ -324,10 +328,12 @@ public class App {
     }
 
     /**
-     * method: readEnum
-     * parameters: prompt, enumType
-     * return: E
-     * purpose: Reads an enum by name, case-insensitive, with validation.
+     * Read an enum value by name (case-insensitive) with friendly retries.
+     *
+     * @param <E>       enum type
+     * @param prompt    text to show before reading
+     * @param enumType  {@code Class} of the enum to parse
+     * @return a valid enum constant from {@code enumType}
      */
     private <E extends Enum<E>> E readEnum(String prompt, Class<E> enumType) {
         while (true) {
@@ -341,7 +347,9 @@ public class App {
         }
     }
 
-    // Tiny wrappers to keep code tidy
+    // == Tiny wrappers to keep code tidy ==
     private void println(String s) { System.out.println(s); }
     private void print(String s)   { System.out.print(s); }
-} // END APP
+
+} // === END APP ===
+

@@ -1,14 +1,9 @@
 /**
  * Stephanie Ortiz
  * CEN 3024 - Software Development 1
- * November 7th, 2025
+ * November 9th, 2025
  * DbLibrary.java
- * ------------------------------------
- * The library (collection) of all games
- * Has all the same functions as LIBRARY_OLD
- * Now uses actual Database (SQLite)
  */
-
 
 import java.io.BufferedReader;
 import java.nio.charset.StandardCharsets;
@@ -18,27 +13,52 @@ import java.sql.*;
 import java.util.*;
 
 /**
- * SQLite-backed version of Library that still has the same API.
+ * SQLite-backed library for game records.
+ *
+ * <p>Same API as the in-memory {@code Library}, but data lives in an SQLite DB.
+ * This class owns the JDBC connection string, ensures the table exists,
+ * and keeps an in-memory snapshot synced with the DB for fast reads.</p>
+ *
+ * <p><b>Role in the system:</b> data access layer for the CLI/Swing apps.
+ * All persistence work (insert/update/delete/query) flows through here.</p>
+ *
+ * <p><b>Usage:</b> construct with a file path and call the CRUD methods.
+ * The constructor will create the table if needed and load rows.</p>
  */
 public class DbLibrary {
 
     private final List<Game> games = new ArrayList<>();
     private final String url; // Example: jdbc:sqlite:G:/checkpoint.db
 
+    /**
+     * Build a DB-backed library for the given SQLite file.
+     * Ensures schema exists and loads current rows into memory.
+     *
+     * @param sqliteFilePath path to the SQLite database file (created if missing)
+     */
     public DbLibrary(String sqliteFilePath) {
         this.url = "jdbc:sqlite:" + sqliteFilePath;
         ensureTable();
         reloadFromDb();
     }
 
-    //Public API (same as Library)
+    // == Public API (same as Library) ==
 
-    /** returns an unmodifiable view of all games */
+    /**
+     * Returns all games as an unmodifiable view.
+     *
+     * @return immutable list of games currently loaded
+     */
     public List<Game> listAll() {
         return Collections.unmodifiableList(games);
     }
 
-    /** adds a game if its id is unique and saves it */
+    /**
+     * Add a game if its id is unique; persists to DB and updates memory.
+     *
+     * @param game fully-populated {@link Game} to insert
+     * @return status string describing the result (success or error message)
+     */
     public String add(Game game) {
         if (findById(game.getId()).isPresent()) return "❌ A game with that id already exists";
         final String sql =
@@ -59,7 +79,12 @@ public class DbLibrary {
         }
     }
 
-    /** removes a game by id and saves the removal of it */
+    /**
+     * Remove a game by id; deletes from DB and in-memory list.
+     *
+     * @param id unique identifier of the game to remove
+     * @return status string describing the result
+     */
     public String remove(int id) {
         Optional<Game> hit = findById(id);
         if (hit.isEmpty()) return "No game record with id " + id + " to remove";
@@ -74,7 +99,15 @@ public class DbLibrary {
         }
     }
 
-    /** updates a single field by id and saves it */
+    /**
+     * Update a single field on a game and persist only that column.
+     * Valid fields: {@code name, platform, status, priority, ownership}.
+     *
+     * @param id       game id to update
+     * @param field    column name to change
+     * @param newValue new value (parsed/validated per field)
+     * @return status string describing the result
+     */
     public String updateField(int id, String field, String newValue) {
         Optional<Game> hitOpt = findById(id);
         if (hitOpt.isEmpty()) return "⚠️ No game record with id " + id + " to update";
@@ -123,7 +156,14 @@ public class DbLibrary {
         }
     }
 
-    /** imports from a text file and saves rows */
+    /**
+     * Bulk-import from a UTF-8 text file with pipe-separated columns:
+     * {@code id|name|platform|status|priority|ownership}. Comments start with {@code #}.
+     * Skips invalid/duplicate rows, batches inserts, and commits once.
+     *
+     * @param path path to the source text file
+     * @return import summary with counts
+     */
     public String importFromFile(Path path) {
         if (path == null) return "❌ Path is needed.";
         if (!Files.exists(path)) return "❌ File not found: " + path;
@@ -181,12 +221,23 @@ public class DbLibrary {
                 added, skipped, games.size());
     }
 
-    /** finds by id */
+    /**
+     * Find a game by id from the in-memory snapshot.
+     *
+     * @param id game id
+     * @return {@link Optional} containing the game if found
+     */
     public Optional<Game> findById(int id) {
         return games.stream().filter(g -> g.getId() == id).findFirst();
     }
 
-    /** same scoring logic */
+    /**
+     * Compute the backlog score for a game.
+     * Higher means “tackle sooner.” Priority is weighted x2; status adds a small bias.
+     *
+     * @param game target game
+     * @return score used for ranking
+     */
     public int scoreFor(Game game) {
         int statusWeight = switch (game.getStatus()) {
             case UNPLAYED -> 3;
@@ -196,7 +247,12 @@ public class DbLibrary {
         return (game.getPriority() * 2) + statusWeight;
     }
 
-    /** same backlog report */
+    /**
+     * Build a quick backlog health summary plus the top Number items to focus on.
+     *
+     * @param topNumber how many items to list (capped by total size)
+     * @return formatted report
+     */
     public String backlogReport(int topNumber) {
         if (games.isEmpty()) return "No games loaded yet.";
 
@@ -221,9 +277,12 @@ public class DbLibrary {
         return sb.toString();
     }
 
-    //Helpers
+    // == Helpers ==
 
-    /** Create table if missing (strict to set enums) */
+    /**
+     * Create the {@code games} table if missing.
+     * Uses CHECK constraints to guard enum-like values and priority range.
+     */
     private void ensureTable() {
         String ddl = """
             CREATE TABLE IF NOT EXISTS games(
@@ -243,7 +302,9 @@ public class DbLibrary {
         }
     }
 
-    /** Load all rows from DB, mapping any odd values to enums */
+    /**
+     * Refresh the in-memory list from the DB. Normalizes strings to enums safely.
+     */
     private void reloadFromDb() {
         games.clear();
         final String sql =
@@ -267,22 +328,33 @@ public class DbLibrary {
         }
     }
 
-    /** Map any unexpected status to a supported enum */
+    /**
+     * Parse a status string into a supported enum (defaults to UNPLAYED for unknowns).
+     *
+     * @param s input string
+     * @return normalized {@link Game.Status}
+     */
     private static Game.Status toStatus(String s) {
         if (s == null) return Game.Status.UNPLAYED;
         return switch (s.trim().toUpperCase(Locale.ROOT)) {
             case "PLAYING" -> Game.Status.PLAYING;
             case "BEATEN"  -> Game.Status.BEATEN;
-            default        -> Game.Status.UNPLAYED; // For example: ABANDONED/unknown -> UNPLAYED
+            default        -> Game.Status.UNPLAYED; // e.g., ABANDONED/unknown -> UNPLAYED
         };
     }
 
-    /** Map any unexpected ownership to a supported enum */
+    /**
+     * Parse an ownership string into a supported enum (defaults to DIGITAL for unknowns).
+     *
+     * @param s input string
+     * @return normalized {@link Game.Ownership}
+     */
     private static Game.Ownership toOwnership(String s) {
         if (s == null) return Game.Ownership.DIGITAL;
         return switch (s.trim().toUpperCase(Locale.ROOT)) {
             case "PHYSICAL" -> Game.Ownership.PHYSICAL;
-            default         -> Game.Ownership.DIGITAL; //  For example: if its GAME PASS/PS PLUS/unknown -> DIGITAL
+            default         -> Game.Ownership.DIGITAL; // e.g., Game Pass/PS Plus/unknown -> DIGITAL
         };
     }
-} // END DBLIBRARY
+
+} // === END DBLIBRARY ===
